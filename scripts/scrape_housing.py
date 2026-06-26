@@ -349,12 +349,42 @@ renderChart();
 
 
 def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict):
-    """写入 data/summary.json 供 Workflow 通知使用"""
+    """写入 data/summary.json 供 Workflow 通知使用，同时生成通知 HTML"""
+    a_price = anjuke.get("avg_price")
+    a_change = anjuke.get("price_change")
+    l_price = lianjia.get("avg_price")
+    l_deals = lianjia.get("last_month_deals")
+    t_avg = transaction.get("avg_price") if transaction else None
+    t_count = transaction.get("count", 0) if transaction else 0
+
+    # 生成通知 HTML
+    lines = []
+    lines.append('<h3>防城港·锦泰现代城 本周房价</h3>')
+    lines.append('<table style="width:100%;border-collapse:collapse;font-size:14px;">')
+
+    def row(label, value, bg="", color=""):
+        style = f'background:{bg};' if bg else ''
+        style2 = f'color:{color};font-weight:bold;' if color else ''
+        lines.append(f'<tr style="{style}"><td style="padding:6px;">{label}</td><td style="padding:6px;{style2}">{value}</td></tr>')
+
+    row("安居客均价", f"{a_price}元/m²" if a_price else "N/A", "#f5f5f5", "#e67e22")
+    row("链家均价", f"{l_price}元/m²" if l_price else "N/A", "", "#27ae60")
+    row("环比变化", f"{a_change}%" if a_change else "N/A", "#f5f5f5")
+    row("上月成交", f"{l_deals}套" if l_deals else "N/A")
+    if t_count and t_count > 0:
+        row("成交均价", f"{t_avg}元/m² ({t_count}条)", "#fff3e0", "#e74c3c")
+    lines.append('</table>')
+    lines.append('<br/><a href="https://liuruchuan.github.io/fangchenggang-housing/" style="color:#e67e22;">查看完整趋势图 →</a>')
+    lines.append('<hr/><p style="color:#999;font-size:12px;">每周六 12:00 自动推送</p>')
+
+    notify_html = "\n".join(lines)
+
     summary = {
-        "anjuke": {"avg_price": anjuke.get("avg_price"), "price_change": anjuke.get("price_change"), "listing_count": anjuke.get("listing_count")},
-        "lianjia": {"avg_price": lianjia.get("avg_price"), "last_month_deals": lianjia.get("last_month_deals"), "listing_count": lianjia.get("listing_count")},
-        "transaction_avg": transaction.get("avg_price") if transaction else None,
-        "transaction_count": transaction.get("count", 0) if transaction else 0,
+        "anjuke": {"avg_price": a_price, "price_change": a_change, "listing_count": anjuke.get("listing_count")},
+        "lianjia": {"avg_price": l_price, "last_month_deals": l_deals, "listing_count": lianjia.get("listing_count")},
+        "transaction_avg": t_avg,
+        "transaction_count": t_count,
+        "notify_html": notify_html,
     }
     with open(DATA_DIR / "summary.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
