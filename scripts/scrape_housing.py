@@ -35,6 +35,9 @@ HEADERS = {
 ANJUKE_URL = "https://fangchenggang.anjuke.com/community/view/1125952"
 # 链家/贝壳文章页
 LIANJIA_URL = "https://news.lianjia.com/fcg/xiaoqu/8909132900874515.html"
+# 链家成交记录 API（贝壳 RTC API）
+LIANJIA_TRANSACTION_API = "https://fcg.ke.com/api/xiaoqu/ershoufang/xiaoquchengjiao/query"
+LIANJIA_XIAOQU_ID = "8909132900874515"
 
 # 小区信息
 COMMUNITY_NAME = "锦泰现代城"
@@ -91,7 +94,47 @@ def fetch_lianjia(session: requests.Session) -> dict:
     return result
 
 
-def update_history_csv(anjuke: dict, lianjia: dict):
+def fetch_transactions(session: requests.Session) -> dict:
+    """抓取链家/贝壳成交记录"""
+    result = {"avg_price": None, "count": 0, "prices": []}
+    try:
+        resp = session.get(
+            LIANJIA_TRANSACTION_API,
+            params={
+                "community_id": LIANJIA_XIAOQU_ID,
+                "limit": 10,
+                "offset": 0,
+            },
+            headers={**HEADERS, "Referer": "https://fcg.ke.com/xiaoqu/"},
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data.get("data", {}).get("list", [])
+            if items:
+                prices = []
+                for item in items:
+                    # unit_price 是成交单价
+                    up = item.get("unit_price")
+                    if up:
+                        prices.append(float(up))
+                if prices:
+                    result["prices"] = prices
+                    result["avg_price"] = round(sum(prices) / len(prices))
+                    result["count"] = len(prices)
+
+                # 也可能在 data.total 直接有汇总价
+                summary = data.get("data", {}).get("summary", {})
+                if summary.get("avg_price"):
+                    result["avg_price"] = round(float(summary["avg_price"]))
+                if summary.get("total"):
+                    result["count"] = int(summary["total"])
+    except Exception as e:
+        print(f"[WARN] 成交记录抓取失败: {e}")
+    return result
+
+
+def update_history_csv(anjuke: dict, lianjia: dict, transaction: dict = None):
     """追加一行到 history.csv"""
     now = datetime.now(timezone(timedelta(hours=8)))
     date_str = now.strftime("%Y-%m-%d")
@@ -114,6 +157,8 @@ def update_history_csv(anjuke: dict, lianjia: dict):
         lianjia.get("last_month_deals", ""),
         anjuke.get("listing_count", ""),
         lianjia.get("listing_count", ""),
+        transaction.get("avg_price", "") if transaction else "",
+        transaction.get("count", "") if transaction else "",
     ]
 
     is_new = not HISTORY_CSV.exists()
@@ -123,7 +168,8 @@ def update_history_csv(anjuke: dict, lianjia: dict):
             writer.writerow([
                 "date", "week", "anjuke_avg_price", "lianjia_avg_price",
                 "anjuke_price_change_pct", "lianjia_last_month_deals",
-                "anjuke_listing_count", "lianjia_listing_count"
+                "anjuke_listing_count", "lianjia_listing_count",
+                "transaction_avg_price", "transaction_count"
             ])
         writer.writerow(row)
 
@@ -302,6 +348,19 @@ renderChart();
     print(f"[SAVED] reports/index.html")
 
 
+def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict):
+    """写入 data/summary.json 供 Workflow 通知使用"""
+    summary = {
+        "anjuke": {"avg_price": anjuke.get("avg_price"), "price_change": anjuke.get("price_change"), "listing_count": anjuke.get("listing_count")},
+        "lianjia": {"avg_price": lianjia.get("avg_price"), "last_month_deals": lianjia.get("last_month_deals"), "listing_count": lianjia.get("listing_count")},
+        "transaction_avg": transaction.get("avg_price") if transaction else None,
+        "transaction_count": transaction.get("count", 0) if transaction else 0,
+    }
+    with open(DATA_DIR / "summary.json", "w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2)
+    print("[SAVED] data/summary.json")
+
+
 def main():
     print("=" * 50)
     print(f"防城港房价调研: {datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M')}")
@@ -317,14 +376,24 @@ def main():
     lianjia_data = fetch_lianjia(session)
     print(f"链家: 均价={lianjia_data.get('avg_price')}, 上月成交={lianjia_data.get('last_month_deals')}套")
 
+    # 尝试获取成交记录
+    transaction_data = fetch_transactions(session)
+    if transaction_data.get("count"):
+        print(f"成交记录: 均价={transaction_data.get('avg_price')}, 条数={transaction_data.get('count')}")
+    else:
+        print("成交记录: 暂无")
+
     # 保存原始快照
     now_str = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d")
-    snapshot = {"date": now_str, "anjuke": anjuke_data, "lianjia": lianjia_data}
+    snapshot = {"date": now_str, "anjuke": anjuke_data, "lianjia": lianjia_data, "transaction": transaction_data}
     with open(DATA_DIR / f"{now_str}_raw.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
     # 追加 CSV
-    update_history_csv(anjuke_data, lianjia_data)
+    update_history_csv(anjuke_data, lianjia_data, transaction_data)
+
+    # 写入 summary JSON（供 Workflow 通知读取）
+    write_summary_json(anjuke_data, lianjia_data, transaction_data)
 
     # 生成周报
     report = generate_report(anjuke_data, lianjia_data)
