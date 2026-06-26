@@ -79,12 +79,7 @@ jobs:
             exit 0
           fi
           DATE=$(date +'%Y-%m-%d')
-          DESP=$(python3 -c "
-import json
-with open('data/summary.json') as f:
-    d = json.load(f)
-print(d.get('notify_html', '<p>数据获取中...</p>'))
-")
+          DESP=$(python3 -c 'import json; d=json.load(open("data/summary.json")); print(d.get("notify_html","<p>no data</p>"))')
           curl -s -X POST "https://sctapi.ftqq.com/$SERVERCHAN_SENDKEY.send" \
             -H "Content-Type: application/json" \
             -d "{\"title\":\"锦泰现代城房价 (${DATE})\",\"desp\":\"${DESP}\"}"
