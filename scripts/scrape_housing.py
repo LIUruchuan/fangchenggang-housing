@@ -348,7 +348,93 @@ renderChart();
     print(f"[SAVED] reports/index.html")
 
 
-def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict):
+def analyze_trend(anjuke: dict, lianjia: dict) -> dict:
+    """对比历史数据，计算周环比、近4周走势、挂牌量变化"""
+    result = {
+        "anjuke_wow_change": None,
+        "lianjia_wow_change": None,
+        "listing_wow_change": None,
+        "trend_4w": "数据不足",
+        "has_anomaly": False,
+        "anomaly_msg": "",
+    }
+
+    if not HISTORY_CSV.exists():
+        return result
+
+    with open(HISTORY_CSV, "r", encoding="utf-8") as f:
+        reader = list(csv.DictReader(f))
+
+    if len(reader) < 1:
+        return result
+
+    # 上周最后一条记录
+    last_rows = reader[-2:] if len(reader) >= 2 else [reader[-1]]
+    prev = last_rows[0]  # 上一周
+    curr_price_a = int(anjuke.get("avg_price") or 0)
+    curr_price_l = int(lianjia.get("avg_price") or 0)
+    curr_listing = int(anjuke.get("listing_count") or 0)
+
+    prev_price_a = float(prev.get("anjuke_avg_price") or 0)
+    prev_price_l = float(prev.get("lianjia_avg_price") or 0)
+    prev_listing = float(prev.get("anjuke_listing_count") or 0)
+    prev_l_listing = float(prev.get("lianjia_listing_count") or 0)
+
+    # 周环比涨跌幅
+    if prev_price_a > 0 and curr_price_a > 0:
+        result["anjuke_wow_change"] = round((curr_price_a - prev_price_a) / prev_price_a * 100, 2)
+    if prev_price_l > 0 and curr_price_l > 0:
+        result["lianjia_wow_change"] = round((curr_price_l - prev_price_l) / prev_price_l * 100, 2)
+
+    # 挂牌量变化（新增挂牌数 = 本周 - 上周）
+    # 优先用链家数据，回退到安居客
+    if (prev_l_listing > 0 or prev_listing > 0) and (anjuke.get("listing_count") or lianjia.get("listing_count")):
+        new_listing = (lianjia.get("listing_count") or anjuke.get("listing_count") or 0) - max(prev_l_listing, prev_listing)
+        result["listing_wow_change"] = int(new_listing)
+
+    # 近4周走势总结
+    if len(reader) >= 4:
+        recent = reader[-4:]
+        prices = []
+        for row in recent:
+            p = float(row.get("anjuke_avg_price") or row.get("lianjia_avg_price") or 0)
+            if p > 0:
+                prices.append(p)
+
+        if len(prices) >= 3:
+            # 简单趋势判断：涨幅超过1%算涨，超过-1%算跌
+            first = prices[0]
+            last = prices[-1]
+            total_change = (last - first) / first * 100 if first > 0 else 0
+
+            ups = sum(1 for i in range(1, len(prices)) if prices[i] > prices[i-1])
+            downs = sum(1 for i in range(1, len(prices)) if prices[i] < prices[i-1])
+
+            if abs(total_change) < 1:
+                result["trend_4w"] = f"近4周保持平稳，波动不超过 ±1%"
+            elif ups > downs:
+                result["trend_4w"] = f"近4周持续上涨 {total_change:+.1f}%"
+            elif downs > ups:
+                result["trend_4w"] = f"近4周持续下跌 {total_change:+.1f}%"
+            else:
+                result["trend_4w"] = f"近4周窄幅震荡，累计 {total_change:+.1f}%"
+        elif len(prices) == 2:
+            chg = (prices[-1] - prices[0]) / prices[0] * 100 if prices[0] > 0 else 0
+            result["trend_4w"] = f"近2周变化 {chg:+.1f}%，数据积累中"
+
+    # 异常检测
+    a_wow = result.get("anjuke_wow_change") or 0
+    l_wow = result.get("lianjia_wow_change") or 0
+    max_change = a_wow if abs(a_wow) > abs(l_wow) else l_wow
+    if abs(max_change) > 5:
+        result["has_anomaly"] = True
+        direction = "上涨" if max_change > 0 else "下跌"
+        result["anomaly_msg"] = f"注意：本周环比{direction}{abs(max_change):.1f}%，幅度超过5%"
+
+    return result
+
+
+def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict, trend: dict):
     """写入 data/summary.json 供 Workflow 通知使用，同时生成通知 HTML"""
     a_price = anjuke.get("avg_price")
     a_change = anjuke.get("price_change")
@@ -356,6 +442,13 @@ def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict):
     l_deals = lianjia.get("last_month_deals")
     t_avg = transaction.get("avg_price") if transaction else None
     t_count = transaction.get("count", 0) if transaction else 0
+
+    a_wow = trend.get("anjuke_wow_change")
+    l_wow = trend.get("lianjia_wow_change")
+    listing_wow = trend.get("listing_wow_change")
+    trend_4w = trend.get("trend_4w", "")
+    has_anomaly = trend.get("has_anomaly", False)
+    anomaly_msg = trend.get("anomaly_msg", "")
 
     # 生成通知 HTML
     lines = []
@@ -369,11 +462,27 @@ def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict):
 
     row("安居客均价", f"{a_price}元/m²" if a_price else "N/A", "#f5f5f5", "#e67e22")
     row("链家均价", f"{l_price}元/m²" if l_price else "N/A", "", "#27ae60")
-    row("环比变化", f"{a_change}%" if a_change else "N/A", "#f5f5f5")
-    row("上月成交", f"{l_deals}套" if l_deals else "N/A")
+
+    # 周环比
+    wow_color = "#e74c3c" if (a_wow or 0) >= 0 else "#27ae60"
+    wow_text = f"{a_wow:+.1f}%" if a_wow is not None else "N/A"
+    row("均价周环比", wow_text, "#f5f5f5", wow_color)
+
+    # 新增挂牌数
+    listing_text = f"+{listing_wow}" if listing_wow and listing_wow > 0 else (str(listing_wow) if listing_wow is not None else "N/A")
+    row("本周新增挂牌", listing_text)
+
     if t_count and t_count > 0:
         row("成交均价", f"{t_avg}元/m² ({t_count}条)", "#fff3e0", "#e74c3c")
+    elif l_deals:
+        row("上月成交", f"{l_deals}套")
     lines.append('</table>')
+
+    if trend_4w:
+        lines.append(f'<p style="margin-top:8px;color:#666;font-size:13px;">{trend_4w}</p>')
+    if has_anomaly and anomaly_msg:
+        lines.append(f'<p style="color:#e74c3c;font-weight:bold;">{anomaly_msg}</p>')
+
     lines.append('<br/><a href="https://liuruchuan.github.io/fangchenggang-housing/" style="color:#e67e22;">查看完整趋势图 →</a>')
     lines.append('<hr/><p style="color:#999;font-size:12px;">每周六 12:00 自动推送</p>')
 
@@ -384,6 +493,7 @@ def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict):
         "lianjia": {"avg_price": l_price, "last_month_deals": l_deals, "listing_count": lianjia.get("listing_count")},
         "transaction_avg": t_avg,
         "transaction_count": t_count,
+        "trend": trend,
         "notify_html": notify_html,
     }
     with open(DATA_DIR / "summary.json", "w", encoding="utf-8") as f:
@@ -422,8 +532,12 @@ def main():
     # 追加 CSV
     update_history_csv(anjuke_data, lianjia_data, transaction_data)
 
+    # 趋势分析
+    trend = analyze_trend(anjuke_data, lianjia_data)
+    print(f"趋势: 安居客周环比={trend.get('anjuke_wow_change', 'N/A')}%, {trend.get('trend_4w', '')}")
+
     # 写入 summary JSON（供 Workflow 通知读取）
-    write_summary_json(anjuke_data, lianjia_data, transaction_data)
+    write_summary_json(anjuke_data, lianjia_data, transaction_data, trend)
 
     # 生成周报
     report = generate_report(anjuke_data, lianjia_data)
