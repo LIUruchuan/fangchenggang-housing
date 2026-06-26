@@ -78,46 +78,14 @@ jobs:
             echo "No SERVERCHAN_SENDKEY, skip notify."
             exit 0
           fi
-
           DATE=$(date +'%Y-%m-%d')
-          PAGE_URL="https://liuruchuan.github.io/fangchenggang-housing/"
-
-          # Read summary from scraper output
-          SUMMARY_FILE="data/summary.json"
-          if [ -f "$SUMMARY_FILE" ]; then
-            # Parse summary variables
-            eval $(python3 -c "
+          DESP=$(python3 -c "
 import json
-with open('$SUMMARY_FILE') as f:
+with open('data/summary.json') as f:
     d = json.load(f)
-a = d.get('anjuke', {})
-l = d.get('lianjia', {})
-print(f'A_PRICE={a.get(\"avg_price\", \"N/A\")}')
-print(f'A_CHANGE={a.get(\"price_change\", \"N/A\")}')
-print(f'L_PRICE={l.get(\"avg_price\", \"N/A\")}')
-print(f'L_DEALS={l.get(\"last_month_deals\", \"N/A\")}')
-print(f'T_AVG={d.get(\"transaction_avg\", \"N/A\")}')
-print(f'T_COUNT={d.get(\"transaction_count\", \"N/A\")}')
+print(d.get('notify_html', '<p>数据获取中...</p>'))
 ")
-
-            desp="<h3>防城港·锦泰现代城 本周房价</h3>"
-            desp="$desp<table style='width:100%;border-collapse:collapse;'>"
-            desp="$desp<tr style='background:#f5f5f5;'><td style='padding:6px;'>安居客均价</td><td style='padding:6px;font-weight:bold;color:#e67e22;'>${A_PRICE}元/m²</td></tr>"
-            desp="$desp<tr><td style='padding:6px;'>链家均价</td><td style='padding:6px;font-weight:bold;color:#27ae60;'>${L_PRICE}元/m²</td></tr>"
-            desp="$desp<tr style='background:#f5f5f5;'><td style='padding:6px;'>环比变化</td><td style='padding:6px;'>${A_CHANGE}%</td></tr>"
-            desp="$desp<tr><td style='padding:6px;'>上月成交</td><td style='padding:6px;'>${L_DEALS}套</td></tr>"
-            if [ "$T_COUNT" != "N/A" ] && [ "$T_COUNT" != "0" ]; then
-              desp="$desp<tr style='background:#fff3e0;'><td style='padding:6px;'>成交均价</td><td style='padding:6px;font-weight:bold;color:#e74c3c;'>${T_AVG}元/m² (${T_COUNT}条)</td></tr>"
-            fi
-            desp="$desp</table>"
-          else
-            desp="<h3>防城港·锦泰现代城 房价周报</h3><p>数据获取中...</p>"
-          fi
-
-          desp="$desp<br/><a href='${PAGE_URL}' style='color:#e67e22;'>查看完整趋势图 &rarr;</a>"
-          desp="$desp<hr/><p style='color:#999;font-size:12px;'>每周六 12:00 自动推送</p>"
-
           curl -s -X POST "https://sctapi.ftqq.com/$SERVERCHAN_SENDKEY.send" \
             -H "Content-Type: application/json" \
-            -d "{\"title\":\"锦泰现代城房价 (${DATE})\",\"desp\":\"${desp}\"}"
+            -d "{\"title\":\"锦泰现代城房价 (${DATE})\",\"desp\":\"${DESP}\"}"
           echo "Server酱 通知已发送"
