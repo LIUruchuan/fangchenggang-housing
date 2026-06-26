@@ -1,0 +1,15 @@
+{
+  "date": "2026-06-26",
+  "anjuke": {
+    "source": "anjuke",
+    "avg_price": null,
+    "price_change": null,
+    "listing_count": null
+  },
+  "lianjia": {
+    "source": "lianjia",
+    "avg_price": 3089,
+    "last_month_deals": 10,
+    "listing_count": 0
+  }
+}
