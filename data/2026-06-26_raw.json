@@ -11,5 +11,10 @@
     "avg_price": 3089,
     "last_month_deals": 10,
     "listing_count": 0
+  },
+  "transaction": {
+    "avg_price": null,
+    "count": 0,
+    "prices": []
   }
 }
