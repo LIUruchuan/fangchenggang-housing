@@ -251,91 +251,143 @@ def generate_report(anjuke: dict, lianjia: dict) -> str:
 
 
 def update_index_html():
-    """更新 HTML 目录页（带价格趋势图）"""
-    history_json = "[]"
+    """更新 HTML 首页：趋势图 + 关键指标 + 历史表格"""
+    history_rows = []
     if HISTORY_CSV.exists():
-        rows = []
         with open(HISTORY_CSV, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                rows.append({
+            for row in csv.DictReader(f):
+                history_rows.append({
                     "date": row["date"],
-                    "anjuke": row["anjuke_avg_price"],
-                    "lianjia": row["lianjia_avg_price"],
+                    "anjuke": row.get("anjuke_avg_price", ""),
+                    "lianjia": row.get("lianjia_avg_price", ""),
+                    "listing": row.get("anjuke_listing_count", ""),
+                    "deals": row.get("lianjia_last_month_deals", ""),
                 })
-        history_json = json.dumps(rows, ensure_ascii=False)
+    history_json = json.dumps(history_rows, ensure_ascii=False)
+
+    # 趋势数据
+    trend_rows = []
+    if TREND_CSV.exists():
+        with open(TREND_CSV, "r", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                trend_rows.append(row)
+    trend_json = json.dumps(trend_rows, ensure_ascii=False)
+
+    # 最新指标
+    latest = history_rows[-1] if history_rows else {}
+    latest_trend = trend_rows[-1] if trend_rows else {}
+    latest_date = latest.get("date", "N/A")
+    a_price = latest.get("anjuke", "N/A")
+    l_price = latest.get("lianjia", "N/A")
+    t4w = latest_trend.get("trend_4w", "数据累积中")
+    anomaly = latest_trend.get("has_anomaly", "") == "True"
+    anomaly_msg = latest_trend.get("anomaly_msg", "")
 
     html = f'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>防城港·锦泰现代城 房价周报</title>
+<title>锦泰现代城 房价追踪</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }}
-h1 {{ color: #333; border-bottom: 2px solid #e67e22; padding-bottom: 10px; }}
-.card {{ background: white; border-radius: 12px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }}
-.price-up {{ color: #e74c3c; }}
-.price-down {{ color: #27ae60; }}
-.chart-box {{ height: 400px; position: relative; }}
-.footer {{ margin-top: 30px; color: #aaa; font-size: 13px; text-align: center; }}
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f0f2f5;color:#333;min-height:100vh}}
+.header{{background:linear-gradient(135deg,#e67e22,#d35400);color:white;padding:32px 20px;text-align:center}}
+.header h1{{font-size:24px;margin-bottom:4px}}
+.header p{{font-size:14px;opacity:0.85}}
+.container{{max-width:960px;margin:0 auto;padding:16px}}
+.card{{background:white;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}}
+.card h3{{font-size:16px;margin-bottom:12px;color:#555}}
+.metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}}
+.metric{{text-align:center;padding:12px;background:#f8f9fa;border-radius:8px}}
+.metric .val{{font-size:22px;font-weight:bold}}
+.metric .lbl{{font-size:12px;color:#999;margin-top:4px}}
+.up{{color:#e74c3c}}.down{{color:#27ae60}}.neutral{{color:#555}}
+.anomaly{{background:#fff3e0!important;border:1px solid #e67e22}}
+.chart-box{{height:380px;position:relative}}
+table{{width:100%;border-collapse:collapse;font-size:13px}}
+th,td{{padding:8px 12px;text-align:center;border-bottom:1px solid #eee}}
+th{{background:#f5f5f5;font-weight:600;color:#666}}
+tr:hover{{background:#f8f9fa}}
+.footer{{text-align:center;color:#aaa;font-size:12px;padding:20px}}
 </style>
 </head>
 <body>
-<h1>🏠 防城港 · 锦泰现代城 房价追踪</h1>
+<div class="header">
+  <h1>防城港 · 锦泰现代城</h1>
+  <p>房价追踪 | 最后更新: {latest_date}</p>
+</div>
+
+<div class="container">
 
 <div class="card">
-<h3>📈 价格趋势</h3>
-<div class="chart-box"><canvas id="priceChart"></canvas></div>
+  <h3>关键指标</h3>
+  <div class="metrics">
+    <div class="metric">
+      <div class="val up">{a_price}</div>
+      <div class="lbl">安居客均价(元/m²)</div>
+    </div>
+    <div class="metric">
+      <div class="val up">{l_price}</div>
+      <div class="lbl">链家均价(元/m²)</div>
+    </div>
+    <div class="metric">
+      <div class="val neutral">{t4w[:8]}</div>
+      <div class="lbl">近4周走势</div>
+    </div>
+    <div class="metric{" anomaly" if anomaly else ""}">
+      <div class="val">{"⚠" if anomaly else "-"}</div>
+      <div class="lbl">{anomaly_msg[:20] if anomaly else "无异常"}</div>
+    </div>
+  </div>
 </div>
 
 <div class="card">
-<h3>📋 数据来源</h3>
-<table style="width:100%;text-align:center;border-collapse:collapse;">
-<tr style="background:#f0f0f0;">
-  <th style="padding:8px;">日期</th>
-  <th>安居客(元/m²)</th>
-  <th>链家(元/m²)</th>
-</tr>
-<tbody id="dataTable"><tr><td colspan="3">加载中...</td></tr></tbody>
-</table>
+  <h3>价格趋势</h3>
+  <div class="chart-box"><canvas id="priceChart"></canvas></div>
 </div>
 
-<div class="footer"><p>自动更新 · 每周六 12:00 CST</p></div>
+<div class="card">
+  <h3>历史记录</h3>
+  <table><thead><tr><th>日期</th><th>安居客(元/m²)</th><th>链家(元/m²)</th><th>挂牌量</th><th>成交</th></tr></thead>
+  <tbody id="dataTable"><tr><td colspan="5">加载中...</td></tr></tbody></table>
+</div>
+
+</div>
+<div class="footer">自动更新 · 每周六 12:00 CST | 数据源: 安居客 + 链家</div>
 
 <script>
 const historyData = {history_json};
+const trendData = {trend_json};
 
 function renderChart() {{
   const dates = historyData.map(d => d.date);
-  const anjukePrices = historyData.map(d => d.anjuke ? parseFloat(d.anjuke) : null);
-  const lianjiaPrices = historyData.map(d => d.lianjia ? parseFloat(d.lianjia) : null);
+  const a = historyData.map(d => d.anjuke ? parseFloat(d.anjuke) : null);
+  const l = historyData.map(d => d.lianjia ? parseFloat(d.lianjia) : null);
 
-  // 价格趋势图
   new Chart(document.getElementById('priceChart'), {{
     type: 'line',
     data: {{
       labels: dates,
       datasets: [
-        {{ label: '安居客均价', data: anjukePrices, borderColor: '#e67e22', backgroundColor: '#e67e2220', tension: 0.3, fill: true }},
-        {{ label: '链家均价', data: lianjiaPrices, borderColor: '#2ecc71', backgroundColor: '#2ecc7120', tension: 0.3, fill: true }},
+        {{ label: '安居客', data: a, borderColor: '#e67e22', backgroundColor: '#e67e2220', tension: 0.3, fill: true, pointRadius: 5 }},
+        {{ label: '链家', data: l, borderColor: '#2ecc71', backgroundColor: '#2ecc7120', tension: 0.3, fill: true, pointRadius: 5 }},
       ]
     }},
     options: {{
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {{ legend: {{ position: 'top' }} }},
-      scales: {{
-        y: {{ beginAtZero: false, title: {{ display: true, text: '均价 (元/m²)' }} }}
-      }}
+      responsive: true, maintainAspectRatio: false,
+      plugins: {{ legend: {{ position: 'top', labels: {{ usePointStyle: true }} }} }},
+      scales: {{ y: {{ beginAtZero: false, title: {{ display: true, text: '均价 (元/m²)' }} }} }}
     }}
   }});
 
-  // 数据表格
   let tbody = '';
   [...historyData].reverse().forEach(d => {{
-    tbody += `<tr><td>${{d.date}}</td><td>${{d.anjuke || '-'}}</td><td>${{d.lianjia || '-'}}</td></tr>`;
+    const tr = trendData.find(t => t.date === d.date);
+    const listing = d.listing || '-';
+    const deals = d.deals || '-';
+    tbody += `<tr><td>${{d.date}}</td><td>${{d.anjuke || '-'}}</td><td>${{d.lianjia || '-'}}</td><td>${{listing}}</td><td>${{deals}}</td></tr>`;
   }});
   document.getElementById('dataTable').innerHTML = tbody;
 }}
