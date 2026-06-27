@@ -24,6 +24,8 @@ DATA_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 
 HISTORY_CSV = DATA_DIR / "history.csv"
+TREND_CSV = DATA_DIR / "trend_history.csv"          # 🆕 趋势分析累积表
+SCRAPE_LOG_CSV = DATA_DIR / "scrape_log.csv"         # 🆕 数据质量追踪表
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -434,67 +436,94 @@ def analyze_trend(anjuke: dict, lianjia: dict) -> dict:
     return result
 
 
+def save_trend_history(trend: dict):
+    """趋势分析数据沉淀：WoW变化、走势判断、异常标记"""
+    now = datetime.now(timezone(timedelta(hours=8)))
+    date_str = now.strftime("%Y-%m-%d")
+
+    row = [
+        date_str,
+        trend.get("anjuke_wow_change"),
+        trend.get("lianjia_wow_change"),
+        trend.get("listing_wow_change"),
+        trend.get("trend_4w", ""),
+        trend.get("has_anomaly", False),
+        trend.get("anomaly_msg", ""),
+    ]
+
+    is_new = not TREND_CSV.exists()
+    with open(TREND_CSV, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if is_new:
+            writer.writerow([
+                "date", "anjuke_wow_pct", "lianjia_wow_pct",
+                "listing_wow_change", "trend_4w", "has_anomaly", "anomaly_msg",
+            ])
+        writer.writerow(row)
+    print(f"[SAVED] trend_history.csv 追加: {date_str}")
+
+
+def save_scrape_log(anjuke_ok: bool, lianjia_ok: bool, transaction_ok: bool):
+    """数据质量追踪：每次抓取后记录哪些数据源成功"""
+    now = datetime.now(timezone(timedelta(hours=8)))
+    date_str = now.strftime("%Y-%m-%d")
+
+    row = [date_str, anjuke_ok, lianjia_ok, transaction_ok]
+
+    is_new = not SCRAPE_LOG_CSV.exists()
+    with open(SCRAPE_LOG_CSV, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if is_new:
+            writer.writerow(["date", "anjuke_ok", "lianjia_ok", "transaction_ok"])
+        writer.writerow(row)
+    print(f"[SAVED] scrape_log.csv 追加: {date_str}")
+
+
 def write_summary_json(anjuke: dict, lianjia: dict, transaction: dict, trend: dict):
-    """写入 data/summary.json 供 Workflow 通知使用，同时生成通知 HTML"""
+    """写入 data/summary.json 供 Workflow 通知使用，同时生成通知 Markdown"""
     a_price = anjuke.get("avg_price")
-    a_change = anjuke.get("price_change")
     l_price = lianjia.get("avg_price")
-    l_deals = lianjia.get("last_month_deals")
     t_avg = transaction.get("avg_price") if transaction else None
     t_count = transaction.get("count", 0) if transaction else 0
 
     a_wow = trend.get("anjuke_wow_change")
-    l_wow = trend.get("lianjia_wow_change")
     listing_wow = trend.get("listing_wow_change")
     trend_4w = trend.get("trend_4w", "")
     has_anomaly = trend.get("has_anomaly", False)
     anomaly_msg = trend.get("anomaly_msg", "")
 
-    # 生成通知 HTML
+    PAGE_URL = "https://liuruchuan.github.io/fangchenggang-housing/"
+
+    # 生成通知 Markdown（微信可渲染链接）
     lines = []
-    lines.append('<h3>防城港·锦泰现代城 本周房价</h3>')
-    lines.append('<table style="width:100%;border-collapse:collapse;font-size:14px;">')
+    lines.append("**安居客均价**: {}元/m²".format(a_price if a_price else "N/A"))
+    lines.append("**链家均价**: {}元/m²".format(l_price if l_price else "N/A"))
 
-    def row(label, value, bg="", color=""):
-        style = f'background:{bg};' if bg else ''
-        style2 = f'color:{color};font-weight:bold;' if color else ''
-        lines.append(f'<tr style="{style}"><td style="padding:6px;">{label}</td><td style="padding:6px;{style2}">{value}</td></tr>')
-
-    row("安居客均价", f"{a_price}元/m²" if a_price else "N/A", "#f5f5f5", "#e67e22")
-    row("链家均价", f"{l_price}元/m²" if l_price else "N/A", "", "#27ae60")
-
-    # 周环比
-    wow_color = "#e74c3c" if (a_wow or 0) >= 0 else "#27ae60"
-    wow_text = f"{a_wow:+.1f}%" if a_wow is not None else "N/A"
-    row("均价周环比", wow_text, "#f5f5f5", wow_color)
-
-    # 新增挂牌数
-    listing_text = f"+{listing_wow}" if listing_wow and listing_wow > 0 else (str(listing_wow) if listing_wow is not None else "N/A")
-    row("本周新增挂牌", listing_text)
-
+    if a_wow is not None:
+        lines.append("**均价周环比**: {0:+.1f}%".format(a_wow))
+    if listing_wow:
+        lines.append("**本周新增挂牌**: {}".format(f"+{listing_wow}" if listing_wow > 0 else str(listing_wow)))
     if t_count and t_count > 0:
-        row("成交均价", f"{t_avg}元/m² ({t_count}条)", "#fff3e0", "#e74c3c")
-    elif l_deals:
-        row("上月成交", f"{l_deals}套")
-    lines.append('</table>')
+        lines.append("**成交均价**: {}元/m² ({}条)".format(t_avg, t_count))
 
     if trend_4w:
-        lines.append(f'<p style="margin-top:8px;color:#666;font-size:13px;">{trend_4w}</p>')
+        lines.append("")
+        lines.append(trend_4w)
     if has_anomaly and anomaly_msg:
-        lines.append(f'<p style="color:#e74c3c;font-weight:bold;">{anomaly_msg}</p>')
+        lines.append("")
+        lines.append(f"⚠️ {anomaly_msg}")
 
-    lines.append('<br/><a href="https://liuruchuan.github.io/fangchenggang-housing/" style="color:#e67e22;">查看完整趋势图 →</a>')
-    lines.append('<hr/><p style="color:#999;font-size:12px;">每周六 12:00 自动推送</p>')
+    lines.append("")
+    lines.append(f"[查看完整趋势图]({PAGE_URL})")
 
-    notify_html = "\n".join(lines)
+    notify_text = "\n".join(lines)
 
     summary = {
-        "anjuke": {"avg_price": a_price, "price_change": a_change, "listing_count": anjuke.get("listing_count")},
-        "lianjia": {"avg_price": l_price, "last_month_deals": l_deals, "listing_count": lianjia.get("listing_count")},
-        "transaction_avg": t_avg,
-        "transaction_count": t_count,
+        "anjuke": {"avg_price": a_price, "listing_count": anjuke.get("listing_count")},
+        "lianjia": {"avg_price": l_price, "last_month_deals": lianjia.get("last_month_deals")},
+        "transaction_avg": t_avg, "transaction_count": t_count,
         "trend": trend,
-        "notify_html": notify_html,
+        "notify_text": notify_text,
     }
     with open(DATA_DIR / "summary.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
@@ -535,6 +564,16 @@ def main():
     # 趋势分析
     trend = analyze_trend(anjuke_data, lianjia_data)
     print(f"趋势: 安居客周环比={trend.get('anjuke_wow_change', 'N/A')}%, {trend.get('trend_4w', '')}")
+
+    # 趋势数据沉淀
+    save_trend_history(trend)
+
+    # 数据质量追踪
+    save_scrape_log(
+        anjuke_ok=bool(anjuke_data.get("avg_price")),
+        lianjia_ok=bool(lianjia_data.get("avg_price")),
+        transaction_ok=bool(transaction_data and transaction_data.get("count")),
+    )
 
     # 写入 summary JSON（供 Workflow 通知读取）
     write_summary_json(anjuke_data, lianjia_data, transaction_data, trend)
