@@ -3,72 +3,106 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>防城港·锦泰现代城 房价周报</title>
+<title>锦泰现代城 房价追踪</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-h1 { color: #333; border-bottom: 2px solid #e67e22; padding-bottom: 10px; }
-.card { background: white; border-radius: 12px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.price-up { color: #e74c3c; }
-.price-down { color: #27ae60; }
-.chart-box { height: 400px; position: relative; }
-.footer { margin-top: 30px; color: #aaa; font-size: 13px; text-align: center; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#f0f2f5;color:#333;min-height:100vh}
+.header{background:linear-gradient(135deg,#e67e22,#d35400);color:white;padding:32px 20px;text-align:center}
+.header h1{font-size:24px;margin-bottom:4px}
+.header p{font-size:14px;opacity:0.85}
+.container{max-width:960px;margin:0 auto;padding:16px}
+.card{background:white;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.card h3{font-size:16px;margin-bottom:12px;color:#555}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.metric{text-align:center;padding:12px;background:#f8f9fa;border-radius:8px}
+.metric .val{font-size:22px;font-weight:bold}
+.metric .lbl{font-size:12px;color:#999;margin-top:4px}
+.up{color:#e74c3c}.down{color:#27ae60}.neutral{color:#555}
+.anomaly{background:#fff3e0!important;border:1px solid #e67e22}
+.chart-box{height:380px;position:relative}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 12px;text-align:center;border-bottom:1px solid #eee}
+th{background:#f5f5f5;font-weight:600;color:#666}
+tr:hover{background:#f8f9fa}
+.footer{text-align:center;color:#aaa;font-size:12px;padding:20px}
 </style>
 </head>
 <body>
-<h1>🏠 防城港 · 锦泰现代城 房价追踪</h1>
+<div class="header">
+  <h1>防城港 · 锦泰现代城</h1>
+  <p>房价追踪 | 最后更新: 2026-06-27</p>
+</div>
+
+<div class="container">
 
 <div class="card">
-<h3>📈 价格趋势</h3>
-<div class="chart-box"><canvas id="priceChart"></canvas></div>
+  <h3>关键指标</h3>
+  <div class="metrics">
+    <div class="metric">
+      <div class="val up"></div>
+      <div class="lbl">安居客均价(元/m²)</div>
+    </div>
+    <div class="metric">
+      <div class="val up">3089</div>
+      <div class="lbl">链家均价(元/m²)</div>
+    </div>
+    <div class="metric">
+      <div class="val neutral">数据不足</div>
+      <div class="lbl">近4周走势</div>
+    </div>
+    <div class="metric">
+      <div class="val">-</div>
+      <div class="lbl">无异常</div>
+    </div>
+  </div>
 </div>
 
 <div class="card">
-<h3>📋 数据来源</h3>
-<table style="width:100%;text-align:center;border-collapse:collapse;">
-<tr style="background:#f0f0f0;">
-  <th style="padding:8px;">日期</th>
-  <th>安居客(元/m²)</th>
-  <th>链家(元/m²)</th>
-</tr>
-<tbody id="dataTable"><tr><td colspan="3">加载中...</td></tr></tbody>
-</table>
+  <h3>价格趋势</h3>
+  <div class="chart-box"><canvas id="priceChart"></canvas></div>
 </div>
 
-<div class="footer"><p>自动更新 · 每周六 12:00 CST</p></div>
+<div class="card">
+  <h3>历史记录</h3>
+  <table><thead><tr><th>日期</th><th>安居客(元/m²)</th><th>链家(元/m²)</th><th>挂牌量</th><th>成交</th></tr></thead>
+  <tbody id="dataTable"><tr><td colspan="5">加载中...</td></tr></tbody></table>
+</div>
+
+</div>
+<div class="footer">自动更新 · 每周六 12:00 CST | 数据源: 安居客 + 链家</div>
 
 <script>
-const historyData = [{"date": "2026-06-26", "anjuke": "", "lianjia": "3089"}, {"date": "2026-06-27", "anjuke": "", "lianjia": "3089"}];
+const historyData = [{"date": "2026-06-26", "anjuke": "", "lianjia": "3089", "listing": "", "deals": "10"}, {"date": "2026-06-27", "anjuke": "", "lianjia": "3089", "listing": "", "deals": "10"}];
+const trendData = [{"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}];
 
 function renderChart() {
   const dates = historyData.map(d => d.date);
-  const anjukePrices = historyData.map(d => d.anjuke ? parseFloat(d.anjuke) : null);
-  const lianjiaPrices = historyData.map(d => d.lianjia ? parseFloat(d.lianjia) : null);
+  const a = historyData.map(d => d.anjuke ? parseFloat(d.anjuke) : null);
+  const l = historyData.map(d => d.lianjia ? parseFloat(d.lianjia) : null);
 
-  // 价格趋势图
   new Chart(document.getElementById('priceChart'), {
     type: 'line',
     data: {
       labels: dates,
       datasets: [
-        { label: '安居客均价', data: anjukePrices, borderColor: '#e67e22', backgroundColor: '#e67e2220', tension: 0.3, fill: true },
-        { label: '链家均价', data: lianjiaPrices, borderColor: '#2ecc71', backgroundColor: '#2ecc7120', tension: 0.3, fill: true },
+        { label: '安居客', data: a, borderColor: '#e67e22', backgroundColor: '#e67e2220', tension: 0.3, fill: true, pointRadius: 5 },
+        { label: '链家', data: l, borderColor: '#2ecc71', backgroundColor: '#2ecc7120', tension: 0.3, fill: true, pointRadius: 5 },
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        y: { beginAtZero: false, title: { display: true, text: '均价 (元/m²)' } }
-      }
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { usePointStyle: true } } },
+      scales: { y: { beginAtZero: false, title: { display: true, text: '均价 (元/m²)' } } }
     }
   });
 
-  // 数据表格
   let tbody = '';
   [...historyData].reverse().forEach(d => {
-    tbody += `<tr><td>${d.date}</td><td>${d.anjuke || '-'}</td><td>${d.lianjia || '-'}</td></tr>`;
+    const tr = trendData.find(t => t.date === d.date);
+    const listing = d.listing || '-';
+    const deals = d.deals || '-';
+    tbody += `<tr><td>${d.date}</td><td>${d.anjuke || '-'}</td><td>${d.lianjia || '-'}</td><td>${listing}</td><td>${deals}</td></tr>`;
   });
   document.getElementById('dataTable').innerHTML = tbody;
 }
