@@ -73,14 +73,4 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_notify != 'true' }}
         env:
           SERVERCHAN_SENDKEY: ${{ secrets.SERVERCHAN_SENDKEY }}
-        run: |
-          if [ -z "$SERVERCHAN_SENDKEY" ]; then
-            echo "No SERVERCHAN_SENDKEY, skip notify."
-            exit 0
-          fi
-          DATE=$(date +'%Y-%m-%d')
-          DESP=$(python3 -c 'import json; d=json.load(open("data/summary.json")); print(d.get("notify_html","<p>no data</p>"))')
-          curl -s -X POST "https://sctapi.ftqq.com/$SERVERCHAN_SENDKEY.send" \
-            -H "Content-Type: application/json" \
-            -d "{\"title\":\"锦泰现代城房价 (${DATE})\",\"desp\":\"${DESP}\"}"
-          echo "Server酱 通知已发送"
+        run: python3 scripts/send_notify.py "锦泰现代城房价" "data/summary.json"
