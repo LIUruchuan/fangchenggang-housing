@@ -1,13 +1,11 @@
 {
   "anjuke": {
     "avg_price": null,
-    "price_change": null,
     "listing_count": null
   },
   "lianjia": {
     "avg_price": 3089,
-    "last_month_deals": 10,
-    "listing_count": 0
+    "last_month_deals": 10
   },
   "transaction_avg": null,
   "transaction_count": 0,
@@ -19,5 +17,5 @@
     "has_anomaly": false,
     "anomaly_msg": ""
   },
-  "notify_html": "<h3>防城港·锦泰现代城 本周房价</h3>\n<table style=\"width:100%;border-collapse:collapse;font-size:14px;\">\n<tr style=\"background:#f5f5f5;\"><td style=\"padding:6px;\">安居客均价</td><td style=\"padding:6px;color:#e67e22;font-weight:bold;\">N/A</td></tr>\n<tr style=\"\"><td style=\"padding:6px;\">链家均价</td><td style=\"padding:6px;color:#27ae60;font-weight:bold;\">3089元/m²</td></tr>\n<tr style=\"background:#f5f5f5;\"><td style=\"padding:6px;\">均价周环比</td><td style=\"padding:6px;color:#e74c3c;font-weight:bold;\">N/A</td></tr>\n<tr style=\"\"><td style=\"padding:6px;\">本周新增挂牌</td><td style=\"padding:6px;\">N/A</td></tr>\n<tr style=\"\"><td style=\"padding:6px;\">上月成交</td><td style=\"padding:6px;\">10套</td></tr>\n</table>\n<p style=\"margin-top:8px;color:#666;font-size:13px;\">数据不足</p>\n<br/><a href=\"https://liuruchuan.github.io/fangchenggang-housing/\" style=\"color:#e67e22;\">查看完整趋势图 →</a>\n<hr/><p style=\"color:#999;font-size:12px;\">每周六 12:00 自动推送</p>"
+  "notify_text": "**安居客均价**: N/A元/m²\n**链家均价**: 3089元/m²\n\n数据不足\n\n[查看完整趋势图](https://liuruchuan.github.io/fangchenggang-housing/)"
 }
