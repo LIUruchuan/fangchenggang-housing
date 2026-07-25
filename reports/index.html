@@ -31,7 +31,7 @@ tr:hover{background:#f8f9fa}
 <body>
 <div class="header">
   <h1>防城港 · 锦泰现代城</h1>
-  <p>房价追踪 | 最后更新: 2026-07-18</p>
+  <p>房价追踪 | 最后更新: 2026-07-25</p>
 </div>
 
 <div class="container">
@@ -73,8 +73,8 @@ tr:hover{background:#f8f9fa}
 <div class="footer">自动更新 · 每周六 12:00 CST | 数据源: 安居客 + 链家</div>
 
 <script>
-const historyData = [{"date": "2026-06-26", "anjuke": "", "lianjia": "3089", "listing": "", "deals": "10"}, {"date": "2026-06-27", "anjuke": "", "lianjia": "3089", "listing": "", "deals": "10"}, {"date": "2026-07-04", "anjuke": "", "lianjia": "3062", "listing": "", "deals": "10"}, {"date": "2026-07-11", "anjuke": "", "lianjia": "3062", "listing": "", "deals": "10"}, {"date": "2026-07-18", "anjuke": "", "lianjia": "3062", "listing": "", "deals": "10"}];
-const trendData = [{"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-07-04", "anjuke_wow_pct": "", "lianjia_wow_pct": "-0.87", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-07-11", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "近4周保持平稳，波动不超过 ±1%", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-07-18", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "近4周保持平稳，波动不超过 ±1%", "has_anomaly": "False", "anomaly_msg": ""}];
+const historyData = [{"date": "2026-06-26", "anjuke": "", "lianjia": "3089", "listing": "", "deals": "10"}, {"date": "2026-06-27", "anjuke": "", "lianjia": "3089", "listing": "", "deals": "10"}, {"date": "2026-07-04", "anjuke": "", "lianjia": "3062", "listing": "", "deals": "10"}, {"date": "2026-07-11", "anjuke": "", "lianjia": "3062", "listing": "", "deals": "10"}, {"date": "2026-07-18", "anjuke": "", "lianjia": "3062", "listing": "", "deals": "10"}, {"date": "2026-07-25", "anjuke": "", "lianjia": "3062", "listing": "", "deals": "10"}];
+const trendData = [{"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-06-27", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-07-04", "anjuke_wow_pct": "", "lianjia_wow_pct": "-0.87", "listing_wow_change": "", "trend_4w": "数据不足", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-07-11", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "近4周保持平稳，波动不超过 ±1%", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-07-18", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "近4周保持平稳，波动不超过 ±1%", "has_anomaly": "False", "anomaly_msg": ""}, {"date": "2026-07-25", "anjuke_wow_pct": "", "lianjia_wow_pct": "0.0", "listing_wow_change": "", "trend_4w": "近4周保持平稳，波动不超过 ±1%", "has_anomaly": "False", "anomaly_msg": ""}];
 
 function renderChart() {
   const dates = historyData.map(d => d.date);
