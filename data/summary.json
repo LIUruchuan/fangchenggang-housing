@@ -4,18 +4,18 @@
     "listing_count": null
   },
   "lianjia": {
-    "avg_price": 3062,
+    "avg_price": 3058,
     "last_month_deals": 10
   },
   "transaction_avg": null,
   "transaction_count": 0,
   "trend": {
     "anjuke_wow_change": null,
-    "lianjia_wow_change": 0.0,
+    "lianjia_wow_change": -0.13,
     "listing_wow_change": null,
     "trend_4w": "近4周保持平稳，波动不超过 ±1%",
     "has_anomaly": false,
     "anomaly_msg": ""
   },
-  "notify_text": "**安居客均价**: N/A元/m²\n**链家均价**: 3062元/m²\n\n近4周保持平稳，波动不超过 ±1%\n\n[查看完整趋势图](https://liuruchuan.github.io/fangchenggang-housing/)"
+  "notify_text": "**安居客均价**: N/A元/m²\n**链家均价**: 3058元/m²\n\n近4周保持平稳，波动不超过 ±1%\n\n[查看完整趋势图](https://liuruchuan.github.io/fangchenggang-housing/)"
 }
