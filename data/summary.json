@@ -11,7 +11,7 @@
   "transaction_count": 0,
   "trend": {
     "anjuke_wow_change": null,
-    "lianjia_wow_change": -0.13,
+    "lianjia_wow_change": 0.0,
     "listing_wow_change": null,
     "trend_4w": "近4周保持平稳，波动不超过 ±1%",
     "has_anomaly": false,
